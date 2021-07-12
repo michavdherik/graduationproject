@@ -25,14 +25,15 @@ def plot_density(gdf, name, ax):
     elif name == 'BF':
         COLOR, CMAP = ['Blue', 'Blues']
 
-    fig, ax = plt.subplots(1, 1)
+    #fig, ax = plt.subplots(1, 1)
     ax = gplt.pointplot(gdf, ax=ax, scale=name, color=COLOR, limits=(
         2, 16), edgecolor='black', zorder=2, legend=True, legend_var='scale', legend_kwargs={'loc': 'lower right'})
     ax = gplt.kdeplot(gdf, shade=True, cmap=CMAP, alpha=0.5, zorder=1, ax=ax)
     ctx.add_basemap(ax, crs=gdf.crs,
                     source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
     ax.set_title(f'{name} Population in Samburu', fontsize=16)
-    plt.show()
+    # plt.show()
+    return
 
 
 def plot_aerial_tracks(gdf, ax):
@@ -41,7 +42,7 @@ def plot_aerial_tracks(gdf, ax):
     :param gdf: GeoDataframe holding flight track data.
     """
 
-    fig, ax = plt.subplots(1, 1)
+    #fig, ax = plt.subplots(1, 1)
     ax = gplt.sankey(gdf, color='green', zorder=1, alpha=0.8, ax=ax)
     ctx.add_basemap(ax, crs=gdf.crs,
                     source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
