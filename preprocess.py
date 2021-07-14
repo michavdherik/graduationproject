@@ -3,7 +3,7 @@
 Use this file to preprocess data.
 
 """
-# %%
+
 from vis import plot_density, plot_aerial_tracks
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,7 +35,7 @@ def get_population_data():
     gdf_bf = gdf_bf[gdf_bf['BF'] > 0]
     bf_counts = gdf_bf['BF'].tolist()
 
-    # gdf_el = gdf_el.head(10)
+    # gdf_el = gdf_el.head(3)
     # gdf_bf = gdf_bf.head(10)
 
     return (gdf_el, 'EL'), (gdf_bf, 'BF')
