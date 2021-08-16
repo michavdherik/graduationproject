@@ -25,14 +25,14 @@ def plot_density(gdf, name, ax):
     elif name == 'BF':
         COLOR, CMAP = ['Blue', 'Blues']
 
-    #fig, ax = plt.subplots(1, 1)
-    ax = gplt.pointplot(gdf, ax=ax, scale=name, color=COLOR, limits=(
-        2, 16), edgecolor='black', zorder=2, legend=True, legend_var='scale', legend_kwargs={'loc': 'lower right'})
+    # fig, ax = plt.subplots(1, 1) scale=name, limits=(2, 16), legend=True, legend_var='scale', legend_kwargs={'loc': 'lower right'}
+    ax = gplt.pointplot(gdf, ax=ax, scale=name, limits=(2, 16), color=COLOR, edgecolor='black', zorder=2,
+                        legend=True, legend_var='scale', legend_kwargs={'loc': 'lower right'})
     ax = gplt.kdeplot(gdf, shade=True, cmap=CMAP, alpha=0.5, zorder=1, ax=ax)
     ctx.add_basemap(ax, crs=gdf.crs,
                     source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
     ax.set_title(f'{name} Population in Samburu', fontsize=16)
-    # plt.show()
+    plt.show()
     return
 
 
@@ -43,44 +43,40 @@ def plot_aerial_tracks(gdf, ax):
     """
 
     #fig, ax = plt.subplots(1, 1)
-    ax = gplt.sankey(gdf, color='green', zorder=1, alpha=0.8, ax=ax)
+    ax = gplt.sankey(gdf['geometry'], color='green',
+                     zorder=1, alpha=0.8, ax=ax)
     ctx.add_basemap(ax, crs=gdf.crs,
                     source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
-    ax.set_title('Flight Tracks in Samburu', fontsize=16)
+    #ax.set_title('Flight Tracks in Samburu', fontsize=16)
     plt.show()
     return
 
 
-def plot_land_cover_map(gdf):
+def plot_blocks(gdf, ax):
     """
-    Plot land cover map.
+    Plot flight track blocks.
+    :param gdf: GeoDataframe holding block data.
+    :param ax: Figure to plot block data onto.
     """
+
+    #fig, ax = plt.subplots(1, 1)
+    ax = gplt.polyplot(gdf, color='blue', zorder=2, alpha=0.8, ax=ax)
+    ctx.add_basemap(ax, crs=gdf.crs,
+                    source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
+    #ax.set_title('Flight Tracks in Samburu', fontsize=16)
+    plt.show()
     return
 
-###  Plot land cover map ###
-# Read land cover map
-# landcover_path = r'./data/Kenya_Sentinel2_LULC2016/Kenya_Sentinel2_LULC2016.tif'
 
-# Get window
-# ulx, uly, lrx, lry = [3, 36, -0.2, 39]
-# xmax, ymax, xmin, ymin = [3, 36, -0.2, 39]
-# def window_from_extent(xmin, xmax, ymin, ymax, aff):
-#     col_start, row_start = ~aff * (xmin, ymax)
-#     col_stop, row_stop = ~aff * (xmax, ymin)
-#     return ((int(row_start), int(row_stop)), (int(col_start), int(col_stop)))
+def plot_land_cover_map(gdf, ax):
+    """
+    Plot NDVI map.
+    :param gdf: GeoDataframe holding block data.
+    :param ax: Figure to plot block data onto.
+    """
 
-
-# Transform
-# with rasterio.open(landcover_path) as src:
-#     aff = src.transform
-#     meta = src.meta.copy()
-#     window = window_from_extent(xmin, xmax, ymin, ymax, aff)
-#     # Read cropped array
-#     arr = src.read(1, window=window)
-#     # Update dataset metadata (if you need it)
-#     meta.update(height=window[0][1] - window[0][0],
-#                 width=window[1][1] - window[1][0],
-#                 affine=src.window_transform(window))
-#     meta.pop('transform', None)
-
-# show(arr)
+    gdf.plot(column='value', cmap='Greens', ax=ax, legend=True)
+    ctx.add_basemap(ax, crs=gdf.crs,
+                    source=ctx.providers.OpenStreetMap.Mapnik, zoom=8)
+    plt.show()
+    return
