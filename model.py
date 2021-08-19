@@ -5,26 +5,40 @@ Use this file to write the agent-based model.
 """
 
 from mesa import Model
-from mesa.time import RandomActivation
+from mesa.time import BaseScheduler
 from mesa_geo import GeoSpace
 from mesa_geo.geoagent import GeoAgent, AgentCreator
-# from mesa.datacollection import DataCollector
-
+from mesa.datacollection import DataCollector
 from shapely.geometry import Point
 from preprocess import get_population_data
+
+
+class NDVIcell(GeoAgent):
+    """Agent class representing stationary NDVI cells."""
+
+    def __init__(self, unique_id, model, shape, value=-1):
+        """Create new NDVI agent.`
+
+        :param unique_id:   Unique identifier for the agent
+        :param model:       Model in which the agent runs
+        :param shape:       Shape object for the agent
+        :param value:       NDVI value of patch
+        """
+        super().__init__(unique_id, model, shape)
+        # Agent parameters
+        self.value = value
+
+    def step(self):
+        pass
+
+    def __repr__(self):
+        return "NDVI Patch " + str(self.unique_id) + " with Value: " + str(self.value)
 
 
 class Animal(GeoAgent):
     """Agent Class representing an animal."""
 
-    def __init__(
-        self,
-        unique_id,
-        model,
-        shape,
-        animal_count=1.0,
-        mobility_range=0.1,
-    ):
+    def __init__(self, unique_id, model, shape, animal_count=1.0, mobility_range=0.1, ndvi=0):
         """Create new animal agent.
 
         :param unique_id:      Unique identifier for the agent
@@ -32,31 +46,49 @@ class Animal(GeoAgent):
         :param shape:          Shape object for the agent
         :param animal_count:   Animal count per viewing, as presented in gdf.
         :param mobility range: Range of distance to move in one step.
+        :param ndvi:           Tuple holding underlying NDVI patch centroid and value
         """
         super().__init__(unique_id, model, shape)
         # Agent parameters
         self.animal_count = animal_count
         self.mobility_range = mobility_range  # distance travelled per step
+        self.ndvi_value = ndvi_value
 
-    def move_animal(self, dx, dy):
+    def move_animal(self, destination):
+        """Move animal based on surrounding NDVI values.
+        :param destination: NDVI destination patch
+
+        Return Shapely Point geometry of new position of agent.
         """
-        Move an animal by creating a new one, in a new position.
-        For now: random movements.
-        :param dx:  Distance to move in x-axis
-        :param dy:  Distance to move in y-axis
-        """
-        return Point(self.shape.x + dx, self.shape.y + dy)
+
+        if destination.value > self.ndvi_value:
+            # If destination value is more than own ndvi value,
+            # calculate direction vector to destination patch
+            x_dir = destination.shape.centroid.x - self.shape.x
+            y_dir = destination.shape.centroid.y - self.shape.y
+
+            dx, dy = tuple(self.mobility_range * dim
+                           for dim in [x_dir, y_dir])
+        else:
+            # Don't move
+            dx, dy = (0, 0)
+
+        return Point(self.shape.x + dx,
+                     self.shape.y + dy)
 
     def step(self):
         """Advance one step."""
-        move_x = self.random.uniform(-self.mobility_range,
-                                     self.mobility_range)
-        move_y = self.random.uniform(-self.mobility_range,
-                                     self.mobility_range)
-        self.shape = self.move_animal(move_x, move_y)  # Reassign shape
+
+        # Calculate patch with maximum value
+        all_ndvi = [
+            a for a in self.model.grid.agents if isinstance(a, NDVIcell)]
+        ndvi_max = max(all_ndvi, key=lambda x: x.value)
+
+        # Reassign shape
+        self.shape = self.move_animal(ndvi_max)
 
     def __repr__(self):
-        return "Animal: " + str(self.unique_id)
+        return "Observation: " + str(self.unique_id)
 
 
 class AnimalModel(Model):
@@ -65,56 +97,89 @@ class AnimalModel(Model):
     # Global vars
     MAP_COORDS = [1.1503504594373148, 37.213466839155515]  # Samburu Region
 
-    def __init__(self, gdf, name):
+    def __init__(self, gdf_animal, gdf_ndvi, animal_name, ndvi_value):
         """
         Create a new animal model.
-        :param gdf: GeoDataframe holding data.
-        :param name: 2-letter abbreviation name for animal species to be modelled.
+        :param gdf_animal: GeoDataframe with animal data.
+        :param gdf_ndvi: GeoDataframe with NDVI data.
+        :param animal_name: 2-letter abbreviation name for animal species to be modelled.
+        :param ndvi_value: NDVI value as present in gdf_ndvi.
         """
 
         # Input parameters
-        self.gdf = gdf
-        self.name = name
+        self.gdf_animal = gdf_animal
+        self.gdf_ndvi = gdf_ndvi
+        self.animal_name = animal_name
+        self.ndvi_value = ndvi_value
 
-        # Model parameters
-        self.grid = GeoSpace(crs=gdf.crs)
-        self.schedule = RandomActivation(self)
+        # Make sure that projections are equal
+        if not gdf_animal.crs == gdf_ndvi.crs:
+            gdf_ndvi = gdf_ndvi.to_crs(gdf_animal.crs)
+        self.grid = GeoSpace(crs=gdf_animal.crs)
+
+        self.schedule = BaseScheduler(self)
 
         # Model running parameters
         self.steps = 0
         self.running = True
-        # self.datacollector = DataCollector(
-        #     agent_reporters={"Location"=agent.shape.coords}
-        # )
 
-        gdf_new = gdf.filter(['geometry', name], axis=1)
+        # Set up the NDVI patches(add to schedule later)
+        AC = AgentCreator(agent_class=NDVIcell,
+                          agent_kwargs={"model": self},
+                          crs=gdf_ndvi.crs)
+        ndvi_agents = AC.from_GeoDataFrame(gdf=gdf_ndvi,
+                                           unique_id="index",
+                                           set_attributes=True)
+        self.grid.add_agents(ndvi_agents)
+        print("NDVI agents added to grid.")
+
+        # Set up Animal Agents
+        gdf_animal = gdf_animal.filter(['geometry', animal_name], axis=1)
 
         AC = AgentCreator(agent_class=Animal,
-                          agent_kwargs={"model": self}, crs=gdf.crs)
-        animal_agents = AC.from_GeoDataFrame(gdf=gdf_new,
-                                             unique_id="index", set_attributes=True)
-        # self.grid.add_agents(animal_agents)
+                          agent_kwargs={"model": self},
+                          crs=gdf_animal.crs)
+        animal_agents = AC.from_GeoDataFrame(gdf=gdf_animal,
+                                             unique_id="index",
+                                             set_attributes=True)
+        self.grid.add_agents(animal_agents)
+        print("Animal agents added to grid.")
+
+        # Add agents to schedule
+        for ndvi in ndvi_agents:
+            ndvi.value = getattr(ndvi, 'value')
+            self.schedule.add(ndvi)
+        print("NDVI agents added to schedule.")
 
         for animal in animal_agents:
-            # Set animal count in agent
-            animal.animal_count = int(getattr(animal, name))
+            # Set animal count in agent; column 'animal_name' has animal count values'
+            animal.animal_count = int(getattr(animal, animal_name))
             self.schedule.add(animal)
-            self.grid.add_agents(animal)
+        print("Animal agents added to schedule.")
+
+        self.get_animal_ndvi_pairs()
+
+    def get_animal_ndvi_pairs(self):
+        """Calculate which animals are located on which NDVI patch.
+
+        Return: Dictionary of {Animal: NDVI}"""
+
+        observations = [agent for agent in self.grid.agents
+                        if isinstance(agent, Animal)]
+
+        for idx, observation in enumerate(observations):
+            # NDVI Patches that agent is within, can only be one
+            Local_NDVI = next(self.grid.get_relation(observation, "within"))
+            if isinstance(Local_NDVI, NDVIcell):
+                # Set observation's NDVI
+                observation.ndvi = Local_NDVI.value
 
     def step(self):
         """"Step through the model."""
 
         self.steps += 1
         self.schedule.step()
-        # self.datacollector.collect(self)
+
         self.grid._recreate_rtree()  # Recalculate spatial tree, because agents are moving
 
         # # TODO: implement condition so stop running (if condition self.running = False)
-
-
-# elephants, buffalos = get_population_data()
-# (gdf, name) = elephants
-# model = AnimalModel(gdf=gdf, name=name)
-# for i in range(10):
-#     print("Step:", i)
-#     model.step()

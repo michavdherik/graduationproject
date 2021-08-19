@@ -76,7 +76,7 @@ def get_ndvi_loc(cloudmask):
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES1.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.023898.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.23898.tif'
-        ndvi_raster = ndvi_path + 'ndvi_2017_CMtAGG10.tif'
+        ndvi_raster = ndvi_path + 'ndvi_2017_CMtAGG100.tif'
     else:
         # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_0.0023898.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_noreproject.tif'
@@ -110,7 +110,7 @@ def get_ndvi_gdf(preload, cloudmask):
         attributes = x_arr.attrs
 
         #  - y / lat: 39 -> 36, x / lon: -1 -> 3 [UL, UR, BL, BR] = [(3, 36),(3, 39),(-1, 36),(-1, 39)]
-        print(x_arr)
+        # print(x_arr)
         # # Seems like 'NoData' values are filled with -3.4e38. Clip those to -1 (barren environment = not suitable)
         # # print(np.amin(ndvi)); ndvi = np.where(ndvi < -10000000, -1, ndvi)
 
