@@ -4,13 +4,15 @@ Use this file to write the agent-based model.
 
 """
 
+import os
+import geopandas as gp
 from mesa import Model
 from mesa.time import BaseScheduler
 from mesa_geo import GeoSpace
 from mesa_geo.geoagent import GeoAgent, AgentCreator
-from mesa.datacollection import DataCollector
 from shapely.geometry import Point
-from preprocess import get_population_data
+
+poly_path = r'./data/geometries/'
 
 
 class NDVIcell(GeoAgent):
@@ -38,7 +40,7 @@ class NDVIcell(GeoAgent):
 class Animal(GeoAgent):
     """Agent Class representing an animal."""
 
-    def __init__(self, unique_id, model, shape, animal_count=1.0, mobility_range=0.1, ndvi=0):
+    def __init__(self, unique_id, model, shape, animal_count=1.0, mobility_range=0.1, ndvi_value=-1):
         """Create new animal agent.
 
         :param unique_id:      Unique identifier for the agent
@@ -61,31 +63,33 @@ class Animal(GeoAgent):
         Return Shapely Point geometry of new position of agent.
         """
 
-        if destination.value > self.ndvi_value:
-            # If destination value is more than own ndvi value,
-            # calculate direction vector to destination patch
-            x_dir = destination.shape.centroid.x - self.shape.x
-            y_dir = destination.shape.centroid.y - self.shape.y
+        # If destination value is more than own ndvi value,
+        # calculate direction vector to destination patch
+        x_dir = destination.shape.centroid.x - self.shape.x
+        y_dir = destination.shape.centroid.y - self.shape.y
 
-            dx, dy = tuple(self.mobility_range * dim
-                           for dim in [x_dir, y_dir])
+        step = tuple(self.mobility_range * dim for dim in [x_dir, y_dir])
+
+        # Check if Point is within area boundaries
+        if Point(self.shape.x + step[0], self.shape.y + step[1]).within(self.model.SURVEY_POLYGON):
+            return Point(self.shape.x + step[0],
+                         self.shape.y + step[1])
         else:
-            # Don't move
-            dx, dy = (0, 0)
-
-        return Point(self.shape.x + dx,
-                     self.shape.y + dy)
+            # If new location not within area, don't move
+            return Point(self.shape.x,
+                         self.shape.y)
 
     def step(self):
         """Advance one step."""
 
-        # Calculate patch with maximum value
-        all_ndvi = [
-            a for a in self.model.grid.agents if isinstance(a, NDVIcell)]
+        # Calculate NDVI patch with maximum value
+        all_ndvi = [agent for agent in self.model.grid.agents
+                    if isinstance(agent, NDVIcell)]
         ndvi_max = max(all_ndvi, key=lambda x: x.value)
 
-        # Reassign shape
-        self.shape = self.move_animal(ndvi_max)
+        # Move to patch with maximum NDVI
+        if ndvi_max.value > self.ndvi_value:
+            self.shape = self.move_animal(ndvi_max)
 
     def __repr__(self):
         return "Observation: " + str(self.unique_id)
@@ -96,6 +100,8 @@ class AnimalModel(Model):
 
     # Global vars
     MAP_COORDS = [1.1503504594373148, 37.213466839155515]  # Samburu Region
+    SURVEY_POLYGON = gp.read_file(os.path.join(
+        poly_path, 'Census2017Polygon-filled.shp'))['geometry'].values[0]  # Survey Area Polygon
 
     def __init__(self, gdf_animal, gdf_ndvi, animal_name, ndvi_value):
         """
@@ -181,5 +187,3 @@ class AnimalModel(Model):
         self.schedule.step()
 
         self.grid._recreate_rtree()  # Recalculate spatial tree, because agents are moving
-
-        # # TODO: implement condition so stop running (if condition self.running = False)

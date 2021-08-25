@@ -76,7 +76,7 @@ def get_ndvi_loc(cloudmask):
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES1.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.023898.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.23898.tif'
-        ndvi_raster = ndvi_path + 'ndvi_2017_CMtAGG100.tif'
+        ndvi_raster = ndvi_path + 'ndvi_2017_CMtAGG33.tif'
     else:
         # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_0.0023898.tif'
         # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_noreproject.tif'
@@ -86,12 +86,13 @@ def get_ndvi_loc(cloudmask):
     return ndvi_raster
 
 
-def get_ndvi_gdf(preload, cloudmask):
+def get_ndvi_gdf(preload, cloudmask, survey_area):
     """Polygonize raster.
 
     Parameters:
     :param preload: Boolean variable to decide whether to preload existing data or to fetch new.
     :param cloudmask: Boolean variable if clouds should be masked in data( = set to -1).
+    :param survey_area: Shapely Polygon of survey area.
 
     Returns: GeoDataframe with values & geometry.
     """
@@ -120,6 +121,10 @@ def get_ndvi_gdf(preload, cloudmask):
         x_arr = x_arr.assign_attrs(attributes)
         # Get GeoDataframe from DataArray
         gdf_ndvi = polygonize(x_arr)
+
+        # Only keep NDVI patches within survey area
+        gdf_ndvi = gdf_ndvi.loc[lambda _df: _df['geometry'].within(
+            survey_area)]
 
         # Set unique indices
         ndvi_index = pd.Index(['NDVI' + str(idx)

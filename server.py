@@ -31,11 +31,13 @@ def agent_portrayal(agent):
     # portrayal['scale'] = math.sqrt(agent.animal_count)
 
     portrayal = dict()
-    if isinstance(agent, Animal):
+    if isinstance(agent, Animal):  # Animals
         portrayal["color"] = "Red"
         portrayal["radius"] = math.sqrt(agent.animal_count)
         portrayal['layer'] = 1
-    else:
+    else:  # NDVI
+        # Only visualize NDVI values within survey area
+        # if agent.shape.within(AnimalModel.SURVEY_POLYGON):
         # Visualize NDVI-dependent color
         greens = cm.get_cmap("Greens", num_NDVI)
         # Convert NDVI value (from [-1,1] to [0,1] range)
@@ -51,7 +53,8 @@ def agent_portrayal(agent):
 elephants, buffalos = get_2017_population_data()
 (gdf_animal, animal_name) = elephants
 # Load NDVI data
-gdf_ndvi = get_ndvi_gdf(preload=True, cloudmask=True)
+gdf_ndvi = get_ndvi_gdf(preload=False, cloudmask=True,
+                        survey_area=AnimalModel.SURVEY_POLYGON)
 num_NDVI = len(gdf_ndvi)
 ndvi_value = gdf_ndvi['value']
 # Get maximum NDVI value for agent portrayal
