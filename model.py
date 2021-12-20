@@ -5,6 +5,7 @@ Use this file to write the agent-based model.
 """
 
 import os
+import numpy as np
 import geopandas as gp
 from mesa import Model
 from mesa.time import BaseScheduler
@@ -12,7 +13,8 @@ from mesa_geo import GeoSpace
 from mesa_geo.geoagent import GeoAgent, AgentCreator
 from shapely.geometry import Point
 
-poly_path = r'./data/geometries/'
+# Set data path
+polygon_path = r'./data/geometries/'
 
 
 class NDVIcell(GeoAgent):
@@ -56,7 +58,7 @@ class Animal(GeoAgent):
         self.mobility_range = mobility_range  # distance travelled per step
         self.ndvi_value = ndvi_value
 
-    def move_animal(self, destination):
+    def move_animal(self, destination) -> Point:
         """Move animal based on surrounding NDVI values.
         :param destination: NDVI destination patch
 
@@ -99,9 +101,15 @@ class AnimalModel(Model):
     """Model Class for an animal population model."""
 
     # Global vars
-    MAP_COORDS = [1.1503504594373148, 37.213466839155515]  # Samburu Region
+    # Survey Area Polygon
     SURVEY_POLYGON = gp.read_file(os.path.join(
-        poly_path, 'Census2017Polygon-filled.shp'))['geometry'].values[0]  # Survey Area Polygon
+        polygon_path, 'Census2017Polygon-filled.shp'))['geometry'].values[0]
+    # Center of Model
+    x_mean = np.mean(np.concatenate(
+        [tup[0] for tup in [SURVEY_POLYGON.exterior.coords.xy]]))
+    y_mean = np.mean(np.concatenate(
+        [tup[1] for tup in [SURVEY_POLYGON.exterior.coords.xy]]))
+    MAP_COORDS = [x_mean, y_mean]
 
     def __init__(self, gdf_animal, gdf_ndvi, animal_name, ndvi_value):
         """
@@ -151,24 +159,23 @@ class AnimalModel(Model):
         self.grid.add_agents(animal_agents)
         print("Animal agents added to grid.")
 
-        # Add agents to schedule
+        # Add agents to schedule with correct NDVI value
         for ndvi in ndvi_agents:
             ndvi.value = getattr(ndvi, 'value')
             self.schedule.add(ndvi)
         print("NDVI agents added to schedule.")
 
         for animal in animal_agents:
-            # Set animal count in agent; column 'animal_name' has animal count values'
+            # Set animal count in agent
             animal.animal_count = int(getattr(animal, animal_name))
             self.schedule.add(animal)
         print("Animal agents added to schedule.")
 
+        # Calcualte Animal & NDVI location pairs
         self.get_animal_ndvi_pairs()
 
-    def get_animal_ndvi_pairs(self):
-        """Calculate which animals are located on which NDVI patch.
-
-        Return: Dictionary of {Animal: NDVI}"""
+    def get_animal_ndvi_pairs(self) -> None:
+        """Calculate which animals are located on which NDVI patch."""
 
         observations = [agent for agent in self.grid.agents
                         if isinstance(agent, Animal)]
@@ -180,10 +187,11 @@ class AnimalModel(Model):
                 # Set observation's NDVI
                 observation.ndvi = Local_NDVI.value
 
-    def step(self):
+    def step(self) -> None:
         """"Step through the model."""
 
         self.steps += 1
         self.schedule.step()
 
-        self.grid._recreate_rtree()  # Recalculate spatial tree, because agents are moving
+        # Recalculate spatial tree, because agents are moving
+        self.grid._recreate_rtree()

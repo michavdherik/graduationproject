@@ -6,30 +6,21 @@ Use this file to process and configure Sentinel-2 data.
 import affine
 import xarray as xr
 import shapely.geometry as sg
-import matplotlib.pyplot as plt
-import contextily as ctx
-import numpy as np
 import rasterio
 import rasterio.features
 import geopandas as gp
-import geoplot as gplt
-import os
 import pandas as pd
 import pickle
-from tqdm import tqdm
-from vis import plot_land_cover_map
 pd.options.display.width = 0
 pd.set_option('display.max_colwidth', None)
 
 
-# Raster data to GeoDataframe: see https://stackoverflow.com/questions/67487713/python-how-to-convert-geotiff-to-geopanda
-
 def polygonize(da: xr.DataArray) -> gp.GeoDataFrame:
     """
     Polygonize a 2D-DataArray into a GeoDataFrame of polygons. Polygon coordinates are ordened as (BR, BL, UL, UR).
-    : param da: xr.DataArray with raster data
+    :param da: xr.DataArray with raster data
 
-    Returns: polygonized : geopandas.GeoDataFrame with raster data
+    Returns: polygonized: gp.GeoDataFrame with raster data
     """
 
     if da.dims != ("y", "x"):
@@ -41,13 +32,10 @@ def polygonize(da: xr.DataArray) -> gp.GeoDataFrame:
         raise ValueError("transform is required in da.attrs")
     transform = affine.Affine(*transform)
     shapes = rasterio.features.shapes(values, transform=transform)
-    # shapes = A pair of (polygon, value) for each feature found in the image.
 
     geometries = []
     colvalues = []
     for idx, (geom, colval) in enumerate(shapes):
-        if idx < 10:
-            print(colval)
         # Swap x,y coordinates to get lat, lon
         poly_coords = [(y, x) for x, y in geom['coordinates'][0]]
         geometries.append(sg.Polygon(poly_coords))
@@ -55,16 +43,15 @@ def polygonize(da: xr.DataArray) -> gp.GeoDataFrame:
 
     gdf = gp.GeoDataFrame({"value": colvalues, "geometry": geometries})
 
-    # print(gdf.geometry)
     gdf.crs = da.attrs.get("crs")
     return gdf
 
 
-def get_ndvi_loc(cloudmask):
+def get_ndvi_loc(cloudmask) -> str:
     """Get NDVI raster location.
     :param cloudmask: Boolean variable if cloudmask is applied in data or not
 
-    Returns: NDVI raster data.
+    Returns: gdf: string with data location of raster data.
     """
 
     # Data locations
@@ -72,21 +59,14 @@ def get_ndvi_loc(cloudmask):
 
     # File names consist of CloudMask T(rue)/F(alse) + AGGregation factor.
     if cloudmask:
-        # ndvi_raster = ndvi_path + 'ndvi_2017_cmtrue_0.0023898.tif'
-        # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES1.tif'
-        # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.023898.tif'
-        # ndvi_raster = ndvi_path + 'ndvi_2017_CMtRES0.23898.tif'
         ndvi_raster = ndvi_path + 'ndvi_2017_CMtAGG33.tif'
     else:
-        # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_0.0023898.tif'
-        # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_noreproject.tif'
-        # ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_0.023898.tif'
-        ndvi_raster = ndvi_path + 'ndvi_2017_cmfalse_1.tif'
+        ndvi_raster = ndvi_path + 'ndvi_2017_CMfAGG33.tif'
 
     return ndvi_raster
 
 
-def get_ndvi_gdf(preload, cloudmask, survey_area):
+def get_ndvi_gdf(preload, cloudmask, survey_area) -> gp.GeoDataFrame:
     """Polygonize raster.
 
     Parameters:
@@ -94,7 +74,7 @@ def get_ndvi_gdf(preload, cloudmask, survey_area):
     :param cloudmask: Boolean variable if clouds should be masked in data( = set to -1).
     :param survey_area: Shapely Polygon of survey area.
 
-    Returns: GeoDataframe with values & geometry.
+    Returns: gdf_ndvi: gp.GeoDataframe with NDVI values & geometry.
     """
 
     if preload:
@@ -109,12 +89,6 @@ def get_ndvi_gdf(preload, cloudmask, survey_area):
         x_arr = xr.open_rasterio(raster).squeeze('band', drop=True)
         # Save attributes to put back later
         attributes = x_arr.attrs
-
-        #  - y / lat: 39 -> 36, x / lon: -1 -> 3 [UL, UR, BL, BR] = [(3, 36),(3, 39),(-1, 36),(-1, 39)]
-        # print(x_arr)
-        # # Seems like 'NoData' values are filled with -3.4e38. Clip those to -1 (barren environment = not suitable)
-        # # print(np.amin(ndvi)); ndvi = np.where(ndvi < -10000000, -1, ndvi)
-
         # This function removes attributes
         x_arr = xr.where(x_arr < -10000000, -1, x_arr)
         # Re-add attributes

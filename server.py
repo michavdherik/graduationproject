@@ -24,20 +24,14 @@ class StepElement(TextElement):
 def agent_portrayal(agent):
     """Portayal function to send to visualize agent"""
 
-    # TODO: match color with animal species
-    # TODO: animal emoji image instead of dot, using scale instead of radius.
-    # img_loc = "elephant_emoji.png"
-    # portrayal['shape'] = img_loc
-    # portrayal['scale'] = math.sqrt(agent.animal_count)
-
     portrayal = dict()
-    if isinstance(agent, Animal):  # Animals
+    # Animals
+    if isinstance(agent, Animal):
         portrayal["color"] = "Red"
         portrayal["radius"] = math.sqrt(agent.animal_count)
         portrayal['layer'] = 1
-    else:  # NDVI
-        # Only visualize NDVI values within survey area
-        # if agent.shape.within(AnimalModel.SURVEY_POLYGON):
+     # NDVI
+    if isinstance(agent, NDVIcell):
         # Visualize NDVI-dependent color
         greens = cm.get_cmap("Greens", num_NDVI)
         # Convert NDVI value (from [-1,1] to [0,1] range)
@@ -52,11 +46,13 @@ def agent_portrayal(agent):
 # Load animal data
 elephants, buffalos = get_2017_population_data()
 (gdf_animal, animal_name) = elephants
+
 # Load NDVI data
-gdf_ndvi = get_ndvi_gdf(preload=False, cloudmask=True,
+gdf_ndvi = get_ndvi_gdf(preload=True, cloudmask=True,
                         survey_area=AnimalModel.SURVEY_POLYGON)
 num_NDVI = len(gdf_ndvi)
 ndvi_value = gdf_ndvi['value']
+
 # Get maximum NDVI value for agent portrayal
 max_ndvi = gdf_ndvi['value'].max()
 
@@ -66,16 +62,19 @@ model_params = {"gdf_animal": gdf_animal,
                 "ndvi_value": ndvi_value
                 }
 
+# Set visualization elements
 step_element = StepElement()
 map_element = MapModule(agent_portrayal,
                         view=AnimalModel.MAP_COORDS,
                         zoom=7,
                         map_height=500, map_width=500)
 
+# Initialize web server
 server = ModularServer(AnimalModel,
                        [map_element, step_element],
                        f"{animal_name} Model",
                        model_params)
 
+# Set server port and launch
 server.port = 8521  # The default
 server.launch()
