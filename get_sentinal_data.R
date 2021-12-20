@@ -15,12 +15,10 @@ library(tidyverse)
 library(ggplot2)
 library(Rfast)
 library(matrixStats)
-
-# Set working directory
-setwd("C:/Users/micha/OneDrive - TU Eindhoven/00. Studie Relevant/00. 2IMC00 Thesis/graduationproject")
+library(here)
 
 # Read pre-made Polygon geometry of area of interest
-aoi <- readOGR('data/geometries')
+aoi <- readOGR(here('data/geometries'))
 # Convert to raster of certain geometry.
 out <- raster(aoi)
 
@@ -84,18 +82,11 @@ ndvi_stack <- flip(t(ndvi_stack), direction='y')
 # Extract layer from stack
 ndvi_layer <- subset(ndvi_stack, 1, drop=TRUE)
 
-
-# Aggregate to resolution:
-# From sentinel-2: latitude degree/pixel = 0.0023898 
-# multiplied by number of pixels vertically *1422,  times ~km per latitude degree *111 = number of km vertically on picture.
-# That divided by 1470 = km/pixel vertically = 0.2652678
-# resolution we want: E.g.: 0.023898 -> equals # dimensions of (126, 167), ncells: 21042
-# resolution of source data: (1422, 1250), 1777500.
-# aggregation factor then equals 1422/126, 1250/167 ~= 10
+# Aggregate to resolution: for example factor 10
 ndvi_layer <- aggregate(ndvi_layer, fact=10)
 
 # Crop to output polygon                       
 ndvi_layer <- crop(ndvi_layer, extent(out))
 
 # Write to file.
-writeRaster(ndvi_layer, 'data/output/ndvi_2017_CMtAGG10.tiff', 'overwrite'=TRUE)
+writeRaster(ndvi_layer, 'data/output/ndvi_2017_CMtAGG33.tiff', 'overwrite'=TRUE)
