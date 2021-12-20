@@ -21,9 +21,9 @@ block_path = r'./data/blocks/'
 
 # Read data
 gdf_2008 = gp.read_file(os.path.join(
-    census_path, 'census_data_2008.shp'))  # 'smb_aerialsurvey_nov2008.shp'
+    census_path, 'census_data_2008.shp'))
 gdf_2017 = gp.read_file(os.path.join(
-    census_path, 'census_data_2017'))  # 'LKPSMB_MSBT_MRU_2017FINAL.shp'
+    census_path, 'census_data_2017.shp'))
 
 
 def get_2008_population_data() -> Tuple[Tuple[gp.GeoDataFrame, str], Tuple[gp.GeoDataFrame, str]]:

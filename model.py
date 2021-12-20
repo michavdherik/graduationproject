@@ -105,9 +105,9 @@ class AnimalModel(Model):
     SURVEY_POLYGON = gp.read_file(os.path.join(
         polygon_path, 'Census2017Polygon-filled.shp'))['geometry'].values[0]
     # Center of Model
-    x_mean = np.mean(np.concatenate(
-        [tup[0] for tup in [SURVEY_POLYGON.exterior.coords.xy]]))
     y_mean = np.mean(np.concatenate(
+        [tup[0] for tup in [SURVEY_POLYGON.exterior.coords.xy]]))
+    x_mean = np.mean(np.concatenate(
         [tup[1] for tup in [SURVEY_POLYGON.exterior.coords.xy]]))
     MAP_COORDS = [x_mean, y_mean]
 

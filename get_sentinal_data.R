@@ -2,7 +2,7 @@
 # Derive indices (e.g. NDVI) from the bands and reproject them 
 # to the desired output raster crs and dimensions.
 #
-# Intialork by Melanie Arp & adapted by Micha van den Herik. 
+# Intial work by Melanie Arp & adapted by Micha van den Herik. 
 
 
 # Import GIS libraries
@@ -17,8 +17,11 @@ library(Rfast)
 library(matrixStats)
 library(here)
 
+# Make sure to set local directory, which includes data/geometries folder
+# setwd('YOUR/LOCAL/DIRECTORY')
+
 # Read pre-made Polygon geometry of area of interest
-aoi <- readOGR(here('data/geometries'))
+aoi <- readOGR('/data/geometries')
 # Convert to raster of certain geometry.
 out <- raster(aoi)
 
